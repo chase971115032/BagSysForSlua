@@ -75,6 +75,9 @@ function main()
     	--print(bagData.i)
     end
 
+    --
+    bagPanelTF.localPosition = Vector3(0,-1000,0)
+
     --读取物品资源
     weapon = Resources.LoadAll("WeaponIco")
 
