@@ -1,0 +1,354 @@
+import('UnityEngine')
+
+local class = {}
+--背包数据
+local bagData = {}
+--物品位置
+local GoodsPosArr = {}
+--物品资源列表
+local weapon = {}
+--物品资源种类数目
+local weaponCount = 10
+--物品总数量
+local GoodsCount = 40 
+--当前物品数量
+local GoodsCurCount = 0
+--物品 宽 高
+local goodsWigth = 100
+local goodsHeight = 100
+--画布
+local canvasObj
+--底框Grid
+local DiKuangGridTF
+--物品挂载点Grid
+--local GoodsParentGrid
+--对象池
+local objectPool
+
+function main()
+    -- body
+    --画布
+    canvasObj = GameObject.Find("Canvas")
+    --对象池
+    objectPool = canvasObj.transform:Find("ObjectPool")
+    --背包面板
+    local bagPanelTF = canvasObj.transform:Find("BagPanel")
+    --大背景
+    local bigBgTF = bagPanelTF:Find("BagBG")
+    --底框Grid
+    DiKuangGridTF = bigBgTF:Find("RightBg/GoodsGrid")
+    --物品挂载点Grid
+    --GoodsParentGrid = bigBgTF:Find("RightBg/GoodsParent")
+    --随机获取装备按钮
+    local BttGetGoods = bigBgTF:Find("BttGetGoods"):GetComponent("Button")
+    --一键整理按钮
+    local BttOneCheck = bigBgTF:Find("OneCheck"):GetComponent("Button")
+    --关闭按钮
+    local BttCloseBag = bigBgTF:Find("CloseButton"):GetComponent("Button")
+    --背包打开按钮
+    local BttOpenBag = canvasObj.transform:Find("MainPanel/BackGround/BagButton"):GetComponent("Button")
+    --底框预制体
+    local DiKuangObj = DiKuangGridTF:Find("GoodsDiKuang").gameObject
+    --挂载点预制体
+    --local PosObj = GoodsParentGrid:Find("pos").gameObject
+    --创建物品底框 和 物品挂载点
+    for i=1,GoodsCount do
+    	--底框
+    	local item = GameObject.Instantiate(DiKuangObj)
+    	item.name = i
+    	item:SetActive(true)
+    	item.transform:SetParent(DiKuangGridTF,false)
+    	item:AddComponent(DiKuang)
+    	--挂载点
+    	--local itemP = GameObject.Instantiate(PosObj)
+    	--itemP.name = i
+    	--itemP:SetActive(true)
+    	--itemP.transform:SetParent(GoodsParentGrid,false)
+
+    	--保存位置信息
+    	GoodsPosArr[i] = item.transform
+    end
+
+    --初始化背包信息
+    for i=1,GoodsCount do
+    	bagData[i] = nil
+    	--print(bagData.i)
+    end
+
+    --读取物品资源
+    weapon = Resources.LoadAll("WeaponIco")
+
+    --测试赋值
+    --AddGoodsToBag(CreateGoodsFun(9),5)
+    --AddGoodsToBag(CreateGoodsFun(5),7)
+    --AddGoodsToBag(CreateGoodsFun(2),8)
+
+    --随机获取装备按钮
+    BttGetGoods.onClick:AddListener(
+    	function()
+    		-- body
+    		for i=1,GoodsCount do
+    			if bagData[i] == nil then
+    				AddGoodsToBag(CreateGoodsFun(Random.Range(1,weaponCount)),i)
+    				break
+    			end
+    		end
+    		--刷新背包数据
+    		--UpdateBagData()
+    	end
+    	)
+
+    --一键整理按钮
+    BttOneCheck.onClick:AddListener(
+    	function()
+    		-- body
+    		local newData = {}
+    		local indx = 0
+    		for i=1,GoodsCount do
+    			if bagData[i] ~= nil then
+    				indx = indx + 1
+    				newData[indx] = bagData[i]
+    			end
+    		end
+
+    		--冒泡排序 将同类型装备 放到一起
+    		for i=1,indx-1 do
+    			for k=i+1,indx do
+    				if tonumber(newData[i]:GetComponent("Image").sprite.name) >
+    					tonumber(newData[k]:GetComponent("Image").sprite.name) then
+    					newData[i],newData[k] = newData[k],newData[i]
+    				end
+    			end
+    		end
+
+    		--print(indx)
+    		for i=1,indx do
+    			--print(newData[i])
+    			newData[i].transform:SetParent(canvasObj.transform,true)
+
+    			ComeBackZero(newData[i],GoodsPosArr[i].gameObject)
+
+    			bagData[i] = newData[i]
+    		end
+    		for i=indx + 1,GoodsCount do
+    			bagData[i] = nil
+    		end
+    		--刷新背包数据
+    		--UpdateBagData()
+    	end
+    	)
+
+    --关闭按钮
+    BttCloseBag.onClick:AddListener(
+    	function()
+    		-- body
+    		ToSluaTool.MoveToWords(bagPanelTF:GetComponent("RectTransform"),Vector3(0,-1000,0),0.5,
+    			function ()
+    				-- body
+    				bagPanelTF.gameObject:SetActive(false)
+    			end
+    			) 
+    	end
+    	)
+
+    --打开按钮
+    BttOpenBag.onClick:AddListener(
+    	function()
+    		bagPanelTF.gameObject:SetActive(true)
+    		-- body
+    		ToSluaTool.MoveToWords(bagPanelTF:GetComponent("RectTransform"),Vector3(0,0,0),0.5,
+    			function ()
+    				-- body
+    			end
+    			)  		
+    	end
+    	)
+
+    --UpdateBagData()
+    --print(#weapon)
+    --print(weapon[1])
+    --print(weapon[2])
+
+    class:init()
+    return class
+end
+
+function class:init(count)
+
+end
+
+function class:update()
+    -- body
+end
+
+--将装备添加至背包
+function AddGoodsToBag(goodsObj,bagIndex)
+	-- body
+	if GoodsPosArr[bagIndex].childCount == 0 then
+		--将物品放至对应的物品框
+   		 --goodsObj.transform:SetParent(GoodsPosArr[bagIndex],true)	
+   		 bagData[bagIndex] = goodsObj
+   		 --local vec = GoodsPosArr[i]:TransformPoint(icoItem.transform.localPosition)
+		--local targetVec =  icoItem.transform:InverseTransformPoint(Vector3(0,0,0))
+		ComeBackZero(goodsObj,GoodsPosArr[bagIndex].gameObject)
+	end
+end
+
+--创建物品
+function CreateGoodsFun(goodsType)
+    local item
+    -- 尝试从对象池中获取
+    if objectPool.transform.childCount == 0 then
+    	item = GameObject("icoItem")
+    	item:AddComponent("Image")
+    	--为物品添加 交互脚本
+    	item:AddComponent(UIInterface)
+    	item:AddComponent("CanvasGroup")
+    	item.transform:SetParent(canvasObj.transform,false)
+    	item.transform.localPosition = objectPool.transform.localPosition	
+    else
+    	item = objectPool.transform:GetChild(0).gameObject
+    	item:SetActive(true)
+    end
+
+    	local icoRectTF = item:GetComponent("RectTransform")
+    	local icoImage = item:GetComponent("Image")
+    	-- 乘以2 是因为Resources.LoadAll会把一个Sprite读成两份 取后面那一份
+
+    	ToSluaTool.SetImageSprite(icoImage,weapon[goodsType * 2]) 
+    	icoRectTF.sizeDelta = Vector2(goodsWigth,goodsHeight) 
+
+    return item
+end
+
+--刷新背包数据
+function UpdateBagData()
+	-- body
+	--
+	--print("刷新背包")
+	local sum = 0
+	--遍历背包数据
+    for i=1,GoodsCount do
+    	if bagData[i] ~= nil then
+			ComeBackZero(bagData[i])
+
+    		sum = sum + 1
+    	end
+    end
+    GoodsCurCount = sum
+    --print(GoodsCurCount)
+end
+
+--返回本地坐标的Zero
+function ComeBackZero(obj,parentObj)
+	-- body
+	local v1 = parentObj.transform:TransformPoint(obj.transform.localPosition)
+	local targetVec = obj.transform:InverseTransformPoint(v1)
+
+	ToSluaTool.MoveToWords(obj:GetComponent("RectTransform"),targetVec,0.4,
+	function ()
+		-- body
+		obj.transform:SetParent(parentObj.transform,true)
+   		obj.transform.localPosition = Vector3(0,0,0)
+    	obj:GetComponent("CanvasGroup").blocksRaycasts = true			
+	end)
+end
+
+--回收对象
+function RecycleObject(obj)
+	-- body
+    --将不用的物品 放至 对象池
+    obj:SetActive(false)
+   	obj.transform:SetParent(objectPool.transform,false)
+   	obj.transform.localPosition = Vector3(0,0,0)
+end
+
+----------------拖拽部分-------------------
+
+--当前选中的物品
+local currentObj
+--当前的父物体
+local currentParentObj
+--鼠标当前所在的底框
+local currentDiObj 
+function onPointerDown(obj,pos)
+    -- body
+	currentObj = obj
+	currentParentObj = currentObj.transform.parent.gameObject
+	if currentObj ~= nil then
+		currentObj.transform:SetParent(canvasObj.transform,false)
+		currentObj.transform.localPosition = pos
+		--设置射线穿透
+		currentObj:GetComponent("CanvasGroup").blocksRaycasts = false
+	end
+    --print("点击")
+end
+
+function onDragstart(pos)
+    -- body
+    if currentObj ~= nil then
+    	currentObj.transform.localPosition = pos
+    --currentObj:GetComponent("RectTransform").anchoredPosition =	pos
+     --ToSluaTool.ScreenToWorld(DiKuangGridTF:GetComponent("RectTransform"),pos)
+	end
+    --print("开始拖拽")
+end
+function onDragend(obj)
+    -- body
+    --print("结束拖拽")
+end
+
+--鼠标抬起
+function onPointerUp(obj,pos)
+    -- body
+    if currentObj ~= nil then
+
+    	--设置射线穿透
+		--currentObj:GetComponent("CanvasGroup").blocksRaycasts = true
+		--坐标置0
+    	if currentDiObj ~= nil and currentDiObj ~= currentParentObj then
+    		bagData[tonumber(currentDiObj.name)],bagData[tonumber(currentParentObj.name)] = 
+    			bagData[tonumber(currentParentObj.name)],bagData[tonumber(currentDiObj.name)]
+
+    		--如果目标底框 没有 子物体
+    		if currentDiObj.transform.childCount == 0 then 
+    			--那么 将父物体 设为 当前底框
+    			--print(currentDiObj.name)
+    			--print(bagData[tonumber(currentDiObj.name)])
+    			currentParentObj = currentDiObj
+
+    		else
+    			--如果有子物体 将他们进行交换
+    			local targetSunTF = currentDiObj.transform:GetChild(0)
+    			--先将物品提出
+    			targetSunTF:SetParent(canvasObj.transform,true)
+
+    			ComeBackZero(targetSunTF.gameObject,currentParentObj)
+    			currentParentObj = currentDiObj
+    		end
+    	end
+
+    	--currentObj.transform:SetParent(currentParentObj.transform,true)
+    	ComeBackZero(currentObj,currentParentObj)
+		--currentObj = nil
+	end
+    --print("点击")
+end
+
+------------------底框调用入口------------------------
+function onPointerEnter(obj)
+	-- body
+	if obj ~= nil then
+	obj:GetComponent("Image").color = Vector4(227/255,227/255,160/255,1)
+	--currentDiObj = GoodsPosArr[tonumber(obj.name)].gameObject
+	currentDiObj = obj
+	end
+end
+
+function onPointerExit(obj)
+	-- body
+	if obj ~= nil then
+	obj:GetComponent("Image").color = Vector4(116/255,116/255,116/255,1)
+	currentDiObj = nil
+	end
+end
