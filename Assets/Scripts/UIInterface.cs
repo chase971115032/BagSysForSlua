@@ -17,7 +17,8 @@ public class UIInterface : MonoBehaviour,IDragHandler,IEndDragHandler,IPointerDo
 
     void Update()
     {
-
+        Image img;
+        img.sprite.name
     }
 
 
